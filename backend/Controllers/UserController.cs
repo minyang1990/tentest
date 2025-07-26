@@ -1,35 +1,51 @@
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
+using JwtDemo.Services;
 
 namespace JwtDemo.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    [Authorize]
     public class UserController : ControllerBase
     {
+        private readonly JwtValidationService _jwtValidationService;
+
+        public UserController()
+        {
+            _jwtValidationService = new JwtValidationService();
+        }
         [HttpGet("profile")]
         public IActionResult GetProfile()
         {
             Console.WriteLine("[DEBUG] 收到获取用户资料请求");
             Console.WriteLine($"[DEBUG] 请求时间: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
             
-            var username = User.FindFirst(ClaimTypes.Name)?.Value;
-            var userId = User.FindFirst("userId")?.Value;
-            var role = User.FindFirst("role")?.Value;
+            // 手动验证JWT令牌
+            var authHeader = Request.Headers["Authorization"].FirstOrDefault();
+            Console.WriteLine($"[DEBUG] Authorization头: {authHeader ?? "未提供"}");
             
-            Console.WriteLine($"[DEBUG] 从JWT令牌中提取的用户信息:");
-            Console.WriteLine($"[DEBUG] - 用户名: {username}");
-            Console.WriteLine($"[DEBUG] - 用户ID: {userId}");
-            Console.WriteLine($"[DEBUG] - 角色: {role}");
+            var validationResult = _jwtValidationService.ValidateToken(authHeader);
+            
+            if (!validationResult.IsValid)
+            {
+                Console.WriteLine($"[DEBUG] JWT验证失败: {validationResult.ErrorMessage}");
+                return Unauthorized(new { 
+                    message = "访问被拒绝", 
+                    error = validationResult.ErrorMessage 
+                });
+            }
+            
+            Console.WriteLine($"[DEBUG] JWT验证成功，从令牌中提取的用户信息:");
+            Console.WriteLine($"[DEBUG] - 用户名: {validationResult.Username}");
+            Console.WriteLine($"[DEBUG] - 用户ID: {validationResult.UserId}");
+            Console.WriteLine($"[DEBUG] - 角色: {validationResult.Role}");
 
             return Ok(new
             {
-                username = username,
-                userId = userId,
-                role = role,
-                message = "这是受保护的用户信息，需要有效的JWT令牌才能访问"
+                username = validationResult.Username,
+                userId = validationResult.UserId,
+                role = validationResult.Role,
+                message = "这是受保护的用户信息，通过手动JWT验证获取"
             });
         }
 
