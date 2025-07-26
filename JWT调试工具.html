@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JWT调试工具</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background-color: #fafafa;
+        }
+        .section h3 {
+            color: #2c3e50;
+            margin-top: 0;
+        }
+        textarea {
+            width: 100%;
+            min-height: 100px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            resize: vertical;
+        }
+        button {
+            background-color: #3498db;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        .result {
+            background-color: #ecf0f1;
+            padding: 15px;
+            border-radius: 4px;
+            margin-top: 10px;
+            font-family: 'Courier New', monospace;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .warning {
+            background-color: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+        .jwt-parts {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 15px;
+            margin-top: 15px;
+        }
+        .jwt-part {
+            padding: 10px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            word-break: break-all;
+        }
+        .header-part {
+            background-color: #ffebee;
+            border: 1px solid #f8bbd9;
+        }
+        .payload-part {
+            background-color: #e8f5e8;
+            border: 1px solid #c8e6c9;
+        }
+        .signature-part {
+            background-color: #e3f2fd;
+            border: 1px solid #bbdefb;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 JWT调试工具</h1>
+        
+        <div class="section">
+            <h3>📝 输入JWT令牌</h3>
+            <textarea id="jwtInput" placeholder="请输入JWT令牌...">eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJuYW1lIjoiYWRtaW4iLCJ1c2VySWQiOiIxIiwicm9sZSI6ImFkbWluIiwiaWF0IjoxNzUzNTAxOTA2LCJleHAiOjE3NTM1MDU1MDZ9.TeZb5XgjTJdMUFiLsGg01QNrTbUyPVsmQGdYcpZ9_08</textarea>
+            <button onclick="decodeJWT()">解码JWT</button>
+            <button onclick="clearInput()">清空</button>
+        </div>
+
+        <div class="section">
+            <h3>🔧 JWT结构分析</h3>
+            <div id="jwtStructure" class="result">点击"解码JWT"按钮开始分析...</div>
+            <div class="jwt-parts" id="jwtParts" style="display: none;">
+                <div class="jwt-part header-part">
+                    <strong>Header:</strong>
+                    <div id="headerPart"></div>
+                </div>
+                <div class="jwt-part payload-part">
+                    <strong>Payload:</strong>
+                    <div id="payloadPart"></div>
+                </div>
+                <div class="jwt-part signature-part">
+                    <strong>Signature:</strong>
+                    <div id="signaturePart"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h3>🔐 签名验证</h3>
+            <label for="secretKey">密钥 (与后端保持一致):</label>
+            <textarea id="secretKey" placeholder="请输入签名密钥...">SuperSecureJwtKeyForDemoApplication2024WithAtLeast256BitsLength!@#$%^&*()</textarea>
+            <button onclick="verifySignature()">验证签名</button>
+            <div id="verificationResult" class="result">输入密钥并点击"验证签名"按钮...</div>
+        </div>
+
+        <div class="section">
+            <h3>📊 JWT.io 兼容性检查</h3>
+            <div id="jwtioInfo" class="result">解码JWT后显示JWT.io使用说明...</div>
+        </div>
+    </div>
+
+    <script>
+        let currentJWT = null;
+
+        function decodeJWT() {
+            const jwtInput = document.getElementById('jwtInput').value.trim();
+            if (!jwtInput) {
+                showResult('jwtStructure', '请输入JWT令牌', 'error');
+                return;
+            }
+
+            try {
+                const parts = jwtInput.split('.');
+                if (parts.length !== 3) {
+                    showResult('jwtStructure', `JWT格式错误：应该有3个部分，实际有${parts.length}个部分`, 'error');
+                    return;
+                }
+
+                currentJWT = {
+                    raw: jwtInput,
+                    header: parts[0],
+                    payload: parts[1],
+                    signature: parts[2]
+                };
+
+                // 解码Header和Payload
+                const headerDecoded = JSON.parse(base64UrlDecode(parts[0]));
+                const payloadDecoded = JSON.parse(base64UrlDecode(parts[1]));
+
+                // 显示结构分析
+                let structureInfo = `JWT结构分析成功！\n\n`;
+                structureInfo += `总长度: ${jwtInput.length} 字符\n`;
+                structureInfo += `Header长度: ${parts[0].length} 字符\n`;
+                structureInfo += `Payload长度: ${parts[1].length} 字符\n`;
+                structureInfo += `Signature长度: ${parts[2].length} 字符\n\n`;
+                structureInfo += `Header内容:\n${JSON.stringify(headerDecoded, null, 2)}\n\n`;
+                structureInfo += `Payload内容:\n${JSON.stringify(payloadDecoded, null, 2)}\n\n`;
+                
+                // 时间信息
+                if (payloadDecoded.iat) {
+                    const issuedAt = new Date(payloadDecoded.iat * 1000);
+                    structureInfo += `签发时间: ${issuedAt.toLocaleString()}\n`;
+                }
+                if (payloadDecoded.exp) {
+                    const expiresAt = new Date(payloadDecoded.exp * 1000);
+                    const now = new Date();
+                    const isExpired = now > expiresAt;
+                    structureInfo += `过期时间: ${expiresAt.toLocaleString()} ${isExpired ? '(已过期)' : '(有效)'}\n`;
+                }
+
+                showResult('jwtStructure', structureInfo, 'success');
+
+                // 显示JWT各部分
+                document.getElementById('headerPart').textContent = parts[0];
+                document.getElementById('payloadPart').textContent = parts[1];
+                document.getElementById('signaturePart').textContent = parts[2];
+                document.getElementById('jwtParts').style.display = 'grid';
+
+                // 显示JWT.io使用说明
+                showJWTioInfo(headerDecoded, payloadDecoded);
+
+            } catch (error) {
+                showResult('jwtStructure', `解码失败: ${error.message}`, 'error');
+            }
+        }
+
+        function verifySignature() {
+            if (!currentJWT) {
+                showResult('verificationResult', '请先解码JWT令牌', 'error');
+                return;
+            }
+
+            const secretKey = document.getElementById('secretKey').value.trim();
+            if (!secretKey) {
+                showResult('verificationResult', '请输入密钥', 'error');
+                return;
+            }
+
+            try {
+                // 重新构建待签名数据
+                const dataToSign = `${currentJWT.header}.${currentJWT.payload}`;
+                
+                // 使用Web Crypto API进行HMAC-SHA256计算
+                const encoder = new TextEncoder();
+                const keyData = encoder.encode(secretKey);
+                const data = encoder.encode(dataToSign);
+
+                crypto.subtle.importKey(
+                    'raw',
+                    keyData,
+                    { name: 'HMAC', hash: 'SHA-256' },
+                    false,
+                    ['sign']
+                ).then(key => {
+                    return crypto.subtle.sign('HMAC', key, data);
+                }).then(signature => {
+                    const signatureArray = new Uint8Array(signature);
+                    const expectedSignature = base64UrlEncode(signatureArray);
+                    
+                    let result = `签名验证结果:\n\n`;
+                    result += `待签名数据: ${dataToSign}\n\n`;
+                    result += `使用密钥: ${secretKey.substring(0, 20)}...\n\n`;
+                    result += `期望签名: ${expectedSignature}\n`;
+                    result += `实际签名: ${currentJWT.signature}\n\n`;
+                    
+                    if (expectedSignature === currentJWT.signature) {
+                        result += `✅ 签名验证成功！JWT令牌有效且未被篡改。`;
+                        showResult('verificationResult', result, 'success');
+                    } else {
+                        result += `❌ 签名验证失败！可能原因：\n`;
+                        result += `1. 密钥不正确\n`;
+                        result += `2. JWT令牌被篡改\n`;
+                        result += `3. 签名算法不匹配`;
+                        showResult('verificationResult', result, 'error');
+                    }
+                }).catch(error => {
+                    showResult('verificationResult', `签名验证过程中出错: ${error.message}`, 'error');
+                });
+
+            } catch (error) {
+                showResult('verificationResult', `验证失败: ${error.message}`, 'error');
+            }
+        }
+
+        function showJWTioInfo(header, payload) {
+            let info = `JWT.io 使用说明:\n\n`;
+            info += `1. 访问 https://jwt.io/\n`;
+            info += `2. 在左侧"Encoded"区域粘贴您的JWT令牌\n`;
+            info += `3. 在右下角"VERIFY SIGNATURE"区域输入密钥:\n`;
+            info += `   SuperSecureJwtKeyForDemoApplication2024WithAtLeast256BitsLength!@#$%^&*()\n\n`;
+            info += `4. 确保算法选择为: ${header.alg || 'HS256'}\n\n`;
+            info += `注意: JWT.io默认使用 "your-256-bit-secret" 作为密钥，\n`;
+            info += `您需要替换为我们项目中使用的实际密钥才能验证成功。`;
+            
+            showResult('jwtioInfo', info, 'warning');
+        }
+
+        function clearInput() {
+            document.getElementById('jwtInput').value = '';
+            document.getElementById('jwtStructure').textContent = '点击"解码JWT"按钮开始分析...';
+            document.getElementById('jwtStructure').className = 'result';
+            document.getElementById('jwtParts').style.display = 'none';
+            document.getElementById('verificationResult').textContent = '输入密钥并点击"验证签名"按钮...';
+            document.getElementById('verificationResult').className = 'result';
+            document.getElementById('jwtioInfo').textContent = '解码JWT后显示JWT.io使用说明...';
+            document.getElementById('jwtioInfo').className = 'result';
+            currentJWT = null;
+        }
+
+        function showResult(elementId, message, type) {
+            const element = document.getElementById(elementId);
+            element.textContent = message;
+            element.className = `result ${type}`;
+        }
+
+        function base64UrlDecode(str) {
+            // 将Base64URL转换为标准Base64
+            let base64 = str.replace(/-/g, '+').replace(/_/g, '/');
+            
+            // 添加必要的填充
+            while (base64.length % 4) {
+                base64 += '=';
+            }
+            
+            // 解码
+            const decoded = atob(base64);
+            return decoded;
+        }
+
+        function base64UrlEncode(arrayBuffer) {
+            const bytes = new Uint8Array(arrayBuffer);
+            let binary = '';
+            for (let i = 0; i < bytes.byteLength; i++) {
+                binary += String.fromCharCode(bytes[i]);
+            }
+            const base64 = btoa(binary);
+            return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+        }
+
+        // 页面加载时自动解码示例JWT
+        window.onload = function() {
+            decodeJWT();
+        };
+    </script>
+</body>
+</html>
