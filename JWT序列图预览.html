@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JWT 工作流程序列图预览</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10.6.1/dist/mermaid.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            text-align: center;
+            padding: 30px;
+        }
+        .section {
+            padding: 30px;
+            border-bottom: 1px solid #eee;
+        }
+        .section:last-child {
+            border-bottom: none;
+        }
+        h1 {
+            margin: 0;
+            font-size: 2.5em;
+        }
+        h2 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 1.8em;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+        .mermaid {
+            text-align: center;
+            margin: 20px 0;
+        }
+        .description {
+            background-color: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border-left: 4px solid #667eea;
+        }
+        .description h3 {
+            color: #667eea;
+            margin-top: 0;
+        }
+        .nav {
+            background-color: #f8f9fa;
+            padding: 20px;
+            text-align: center;
+        }
+        .nav a {
+            display: inline-block;
+            margin: 0 10px;
+            padding: 10px 20px;
+            background-color: #667eea;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            transition: background-color 0.3s;
+        }
+        .nav a:hover {
+            background-color: #5a6fd8;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>JWT 工作流程序列图</h1>
+            <p>基于我们创建的前后端项目的完整JWT认证流程可视化</p>
+        </div>
+
+        <div class="nav">
+            <a href="#flow1">完整认证流程</a>
+            <a href="#flow2">令牌生成流程</a>
+            <a href="#flow3">令牌验证流程</a>
+            <a href="#flow4">前端管理流程</a>
+            <a href="#flow5">CORS预检流程</a>
+        </div>
+
+        <div class="section" id="flow1">
+            <h2>1. 完整的JWT认证流程</h2>
+            <div class="description">
+                <h3>流程说明</h3>
+                <p>这个图表展示了从用户登录到访问受保护资源的完整JWT认证流程，包括：</p>
+                <ul>
+                    <li><strong>用户登录</strong>：输入用户名密码进行身份验证</li>
+                    <li><strong>JWT生成</strong>：服务器验证成功后生成JWT令牌</li>
+                    <li><strong>令牌存储</strong>：前端将令牌保存到localStorage</li>
+                    <li><strong>API访问</strong>：携带令牌访问受保护的API端点</li>
+                    <li><strong>令牌验证</strong>：服务器验证令牌的有效性</li>
+                </ul>
+            </div>
+            <div class="mermaid">
+sequenceDiagram
+    participant U as 用户浏览器
+    participant F as 前端应用<br/>(localhost:8080)
+    participant B as 后端API<br/>(localhost:5000)
+    participant S as JWT服务<br/>(.NET Core)
+
+    Note over U,S: 1. 用户登录流程
+    
+    U->>F: 1. 访问登录页面
+    F->>U: 2. 显示登录表单
+    
+    U->>F: 3. 输入用户名密码<br/>(admin/password)
+    F->>F: 4. 构建登录请求
+    
+    F->>B: 5. POST /api/auth/login<br/>Content-Type: application/json<br/>{"username":"admin","password":"password"}
+    
+    Note over B: 6. 验证用户凭据
+    B->>B: 7. 检查用户名密码<br/>(admin == "admin" && password == "password")
+    
+    alt 验证成功
+        B->>S: 8. 调用JWT生成服务
+        S->>S: 9. 创建JWT令牌<br/>- Header: {"alg":"HS256","typ":"JWT"}<br/>- Payload: {"name":"admin","userId":"1","role":"admin","exp":...}<br/>- Signature: HMACSHA256(header.payload, secret)
+        S->>B: 10. 返回JWT令牌
+        B->>F: 11. HTTP 200 OK<br/>{"token":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...","message":"登录成功"}
+        F->>F: 12. 存储令牌到localStorage
+        F->>U: 13. 显示登录成功界面
+    else 验证失败
+        B->>F: 14. HTTP 401 Unauthorized<br/>{"message":"用户名或密码错误"}
+        F->>U: 15. 显示错误信息
+    end
+
+    Note over U,S: 2. 访问受保护资源流程
+    
+    U->>F: 16. 点击"获取用户资料"按钮
+    F->>F: 17. 从localStorage获取JWT令牌
+    
+    F->>B: 18. GET /api/user/profile<br/>Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+    
+    Note over B: 19. JWT中间件拦截请求
+    B->>S: 20. 验证JWT令牌
+    S->>S: 21. 解析令牌结构<br/>- 分割Header.Payload.Signature<br/>- Base64解码Header和Payload<br/>- 验证签名完整性<br/>- 检查过期时间
+    
+    alt 令牌有效
+        S->>B: 22. 验证通过，提取用户信息<br/>Claims: {name:"admin", userId:"1", role:"admin"}
+        B->>B: 23. 执行UserController.GetProfile()
+        B->>F: 24. HTTP 200 OK<br/>{"username":"admin","userId":"1","role":"admin","message":"..."}
+        F->>U: 25. 显示用户信息
+    else 令牌无效/过期
+        S->>B: 26. 验证失败
+        B->>F: 27. HTTP 401 Unauthorized
+        F->>F: 28. 清除本地令牌
+        F->>U: 29. 跳转到登录页面
+    end
+
+    Note over U,S: 3. 获取机密数据流程
+    
+    U->>F: 30. 点击"获取机密数据"按钮
+    F->>B: 31. GET /api/user/data<br/>Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+    B->>S: 32. 再次验证JWT令牌
+    S->>B: 33. 验证通过
+    B->>F: 34. HTTP 200 OK<br/>返回机密数据数组
+    F->>U: 35. 显示机密数据
+
+    Note over U,S: 4. 令牌解码演示
+    
+    U->>F: 36. 点击"解码令牌"按钮
+    F->>F: 37. 客户端解码JWT<br/>- 分割token.split('.')<br/>- atob(parts[0]) 解码Header<br/>- atob(parts[1]) 解码Payload<br/>- 显示Signature
+    F->>U: 38. 显示解码结果
+
+    Note over U,S: 5. 用户退出流程
+    
+    U->>F: 39. 点击"退出登录"按钮
+    F->>F: 40. localStorage.removeItem('jwt_token')
+    F->>U: 41. 返回登录界面
+            </div>
+        </div>
+
+        <div class="section" id="flow2">
+            <h2>2. JWT令牌生成详细流程</h2>
+            <div class="description">
+                <h3>生成过程说明</h3>
+                <p>展示了.NET Core后端如何生成JWT令牌的详细步骤：</p>
+                <ul>
+                    <li><strong>TokenHandler</strong>：创建JWT安全令牌处理器</li>
+                    <li><strong>SymmetricSecurityKey</strong>：使用对称密钥进行签名</li>
+                    <li><strong>TokenDescriptor</strong>：定义令牌的内容和属性</li>
+                    <li><strong>Claims</strong>：添加用户身份信息和权限声明</li>
+                </ul>
+            </div>
+            <div class="mermaid">
+sequenceDiagram
+    participant AC as AuthController
+    participant JH as JwtSecurityTokenHandler
+    participant TD as TokenDescriptor
+    participant SK as SymmetricSecurityKey
+
+    AC->>JH: 1. new JwtSecurityTokenHandler()
+    AC->>SK: 2. new SymmetricSecurityKey(key)<br/>key = "SuperSecureJwtKeyForDemo..."
+    
+    AC->>TD: 3. 创建TokenDescriptor
+    Note over TD: Subject = new ClaimsIdentity([<br/>  new Claim(ClaimTypes.Name, "admin"),<br/>  new Claim("userId", "1"),<br/>  new Claim("role", "admin")<br/>])<br/>Expires = DateTime.UtcNow.AddHours(1)<br/>SigningCredentials = new SigningCredentials(key, HS256)
+    
+    AC->>JH: 4. CreateToken(tokenDescriptor)
+    JH->>JH: 5. 生成Header<br/>{"alg":"HS256","typ":"JWT"}
+    JH->>JH: 6. 生成Payload<br/>包含Claims和过期时间
+    JH->>JH: 7. 生成Signature<br/>HMACSHA256(base64(header).base64(payload), secret)
+    JH->>AC: 8. 返回SecurityToken对象
+    
+    AC->>JH: 9. WriteToken(token)
+    JH->>AC: 10. 返回JWT字符串<br/>"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+            </div>
+        </div>
+
+        <div class="section" id="flow3">
+            <h2>3. JWT令牌验证详细流程</h2>
+            <div class="description">
+                <h3>验证过程说明</h3>
+                <p>展示了服务器如何验证JWT令牌的完整过程：</p>
+                <ul>
+                    <li><strong>令牌提取</strong>：从Authorization头中提取Bearer令牌</li>
+                    <li><strong>结构解析</strong>：分割并解码Header和Payload</li>
+                    <li><strong>签名验证</strong>：使用相同密钥验证签名完整性</li>
+                    <li><strong>时效检查</strong>：验证令牌是否在有效期内</li>
+                </ul>
+            </div>
+            <div class="mermaid">
+sequenceDiagram
+    participant MW as JWT中间件
+    participant TH as TokenHandler
+    participant VP as ValidationParameters
+    participant SK as SymmetricSecurityKey
+
+    MW->>MW: 1. 从Authorization头提取Bearer令牌
+    MW->>TH: 2. 调用令牌验证
+    
+    TH->>TH: 3. 分割令牌<br/>parts = token.split('.')
+    TH->>TH: 4. 解码Header<br/>header = base64Decode(parts[0])
+    TH->>TH: 5. 解码Payload<br/>payload = base64Decode(parts[1])
+    
+    TH->>VP: 6. 获取验证参数
+    Note over VP: ValidateIssuerSigningKey = true<br/>IssuerSigningKey = SymmetricSecurityKey<br/>ValidateIssuer = false<br/>ValidateAudience = false
+    
+    TH->>SK: 7. 使用相同密钥验证签名
+    SK->>SK: 8. 计算期望签名<br/>expectedSignature = HMACSHA256(parts[0].parts[1], secret)
+    SK->>TH: 9. 比较签名<br/>actualSignature == expectedSignature
+    
+    alt 签名验证通过
+        TH->>TH: 10. 检查过期时间<br/>DateTime.UtcNow < payload.exp
+        alt 未过期
+            TH->>MW: 11. 验证成功，返回ClaimsPrincipal
+            MW->>MW: 12. 设置HttpContext.User
+        else 已过期
+            TH->>MW: 13. 返回401 Unauthorized
+        end
+    else 签名验证失败
+        TH->>MW: 14. 返回401 Unauthorized
+    end
+            </div>
+        </div>
+
+        <div class="section" id="flow4">
+            <h2>4. 前端令牌管理流程</h2>
+            <div class="description">
+                <h3>前端管理说明</h3>
+                <p>展示了前端JavaScript如何管理JWT令牌的生命周期：</p>
+                <ul>
+                    <li><strong>初始化检查</strong>：应用启动时检查本地存储的令牌</li>
+                    <li><strong>令牌存储</strong>：登录成功后将令牌保存到localStorage</li>
+                    <li><strong>API请求</strong>：在请求头中携带Bearer令牌</li>
+                    <li><strong>错误处理</strong>：处理401错误并清除无效令牌</li>
+                </ul>
+            </div>
+            <div class="mermaid">
+sequenceDiagram
+    participant LS as LocalStorage
+    participant JD as JWTDemo类
+    participant API as 后端API
+
+    Note over LS,API: 应用初始化
+    JD->>LS: 1. localStorage.getItem('jwt_token')
+    LS->>JD: 2. 返回存储的令牌(如果存在)
+    
+    alt 有令牌
+        JD->>JD: 3. checkAuthStatus() - 显示已登录界面
+        JD->>JD: 4. displayToken() - 显示令牌内容
+    else 无令牌
+        JD->>JD: 5. showLoginUI() - 显示登录界面
+    end
+
+    Note over LS,API: 登录成功后
+    API->>JD: 6. 返回JWT令牌
+    JD->>LS: 7. localStorage.setItem('jwt_token', token)
+    JD->>JD: 8. this.token = token
+
+    Note over LS,API: API请求
+    JD->>JD: 9. 检查令牌是否存在
+    alt 令牌存在
+        JD->>API: 10. 请求头携带令牌<br/>Authorization: Bearer ${this.token}
+        API->>JD: 11. 返回数据或401错误
+        alt 401错误
+            JD->>JD: 12. 调用logout()清除令牌
+        end
+    else 令牌不存在
+        JD->>JD: 13. 显示"请先登录"错误
+    end
+
+    Note over LS,API: 退出登录
+    JD->>LS: 14. localStorage.removeItem('jwt_token')
+    JD->>JD: 15. this.token = null
+    JD->>JD: 16. showLoginUI()
+            </div>
+        </div>
+
+        <div class="section" id="flow5">
+            <h2>5. CORS预检请求流程</h2>
+            <div class="description">
+                <h3>CORS处理说明</h3>
+                <p>展示了跨域请求的预检机制和处理过程：</p>
+                <ul>
+                    <li><strong>预检请求</strong>：浏览器发送OPTIONS请求检查CORS策略</li>
+                    <li><strong>策略验证</strong>：服务器检查允许的源、方法和头部</li>
+                    <li><strong>实际请求</strong>：预检通过后发送真正的API请求</li>
+                    <li><strong>响应处理</strong>：服务器返回带有CORS头的响应</li>
+                </ul>
+            </div>
+            <div class="mermaid">
+sequenceDiagram
+    participant F as 前端(localhost:8080)
+    participant B as 后端(localhost:5000)
+
+    Note over F,B: 复杂请求的CORS预检
+    
+    F->>B: 1. OPTIONS /api/auth/login<br/>Origin: http://localhost:8080<br/>Access-Control-Request-Method: POST<br/>Access-Control-Request-Headers: content-type
+    
+    B->>B: 2. CORS中间件处理预检请求
+    Note over B: 检查CORS策略:<br/>AllowAnyOrigin()<br/>AllowAnyMethod()<br/>AllowAnyHeader()
+    
+    B->>F: 3. HTTP 200 OK<br/>Access-Control-Allow-Origin: *<br/>Access-Control-Allow-Methods: POST<br/>Access-Control-Allow-Headers: content-type
+    
+    F->>B: 4. 实际POST请求<br/>POST /api/auth/login<br/>Content-Type: application/json<br/>{"username":"admin","password":"password"}
+    
+    B->>F: 5. HTTP 200 OK<br/>Access-Control-Allow-Origin: *<br/>{"token":"eyJ...","message":"登录成功"}
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>总结</h2>
+            <div class="description">
+                <h3>JWT工作流程要点</h3>
+                <p>通过这些序列图，您可以清楚地看到：</p>
+                <ul>
+                    <li><strong>安全性</strong>：JWT通过签名机制确保令牌不被篡改</li>
+                    <li><strong>无状态</strong>：服务器不需要存储会话信息，所有信息都在令牌中</li>
+                    <li><strong>跨域支持</strong>：通过CORS配置支持前后端分离架构</li>
+                    <li><strong>时效控制</strong>：令牌包含过期时间，自动失效保证安全</li>
+                    <li><strong>用户体验</strong>：前端智能管理令牌，提供流畅的用户体验</li>
+                </ul>
+                <p>这个完整的JWT认证系统展示了现代Web应用中身份认证的最佳实践。</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 初始化Mermaid
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'default',
+            securityLevel: 'loose',
+            flowchart: {
+                useMaxWidth: true,
+                htmlLabels: true
+            },
+            sequence: {
+                diagramMarginX: 50,
+                diagramMarginY: 10,
+                actorMargin: 50,
+                width: 150,
+                height: 65,
+                boxMargin: 10,
+                boxTextMargin: 5,
+                noteMargin: 10,
+                messageMargin: 35,
+                mirrorActors: true,
+                bottomMarginAdj: 1,
+                useMaxWidth: true,
+                rightAngles: false,
+                showSequenceNumbers: false
+            }
+        });
+    </script>
+</body>
+</html>
