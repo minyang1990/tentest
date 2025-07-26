@@ -1,0 +1,25 @@
+### 测试登录API
+POST http://localhost:5000/api/auth/login
+Content-Type: application/json
+
+{
+  "username": "admin",
+  "password": "password"
+}
+
+### 测试获取用户资料API（需要先登录获取token）
+GET http://localhost:5000/api/user/profile
+Authorization: Bearer YOUR_JWT_TOKEN_HERE
+
+### 测试获取机密数据API（需要先登录获取token）
+GET http://localhost:5000/api/user/data
+Authorization: Bearer YOUR_JWT_TOKEN_HERE
+
+### 测试错误登录
+POST http://localhost:5000/api/auth/login
+Content-Type: application/json
+
+{
+  "username": "wrong",
+  "password": "wrong"
+}

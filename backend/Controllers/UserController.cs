@@ -12,9 +12,17 @@ namespace JwtDemo.Controllers
         [HttpGet("profile")]
         public IActionResult GetProfile()
         {
+            Console.WriteLine("[DEBUG] 收到获取用户资料请求");
+            Console.WriteLine($"[DEBUG] 请求时间: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+            
             var username = User.FindFirst(ClaimTypes.Name)?.Value;
             var userId = User.FindFirst("userId")?.Value;
             var role = User.FindFirst("role")?.Value;
+            
+            Console.WriteLine($"[DEBUG] 从JWT令牌中提取的用户信息:");
+            Console.WriteLine($"[DEBUG] - 用户名: {username}");
+            Console.WriteLine($"[DEBUG] - 用户ID: {userId}");
+            Console.WriteLine($"[DEBUG] - 角色: {role}");
 
             return Ok(new
             {
@@ -28,6 +36,12 @@ namespace JwtDemo.Controllers
         [HttpGet("data")]
         public IActionResult GetSecureData()
         {
+            Console.WriteLine("[DEBUG] 收到获取机密数据请求");
+            Console.WriteLine($"[DEBUG] 请求时间: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+            
+            var username = User.FindFirst(ClaimTypes.Name)?.Value;
+            Console.WriteLine($"[DEBUG] 当前认证用户: {username}");
+            
             return Ok(new
             {
                 data = new[]
