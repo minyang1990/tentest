@@ -10,7 +10,7 @@ namespace JwtDemo.Controllers
     [Route("api/[controller]")]
     public class AuthController : ControllerBase
     {
-        private readonly string _jwtKey = "这是一个超级安全的密钥，至少需要32个字符长度才能保证安全性，现在已经足够长了";
+        private readonly string _jwtKey = "SuperSecureJwtKeyForDemoApplication2024WithAtLeast256BitsLength!@#$%^&*()";
 
         [HttpPost("login")]
         public IActionResult Login([FromBody] LoginRequest request)
